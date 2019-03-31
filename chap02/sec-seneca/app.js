@@ -1,14 +1,21 @@
 const seneca = require("seneca");
-const service = seneca();
+const service = seneca({ log: " silent" });
+const stack = [];
 
-service.add({ math: "sum" }, (msg, next) => {
-  next(null, {
-    sum: msg.values.reduce((total, value) => total + value, 0)
-  });
+service.add("stack:push,value:*", (msg, next) => {
+  stack.push(msg.value);
+
+  next(null, stack);
 });
 
-service.act({ math: "sum", values: [1, 2, 3] }, (err, msg) => {
-  if (err) return console.log(err);
+service.add("stack:pop", (msg, next) => {
+  stack.pop();
 
-  console.log(`sum = ${msg.sum}`);
+  next(null, stack);
 });
+
+service.add("stack:get", (msg, next) => {
+  next(null, stack);
+});
+
+service.listen(3000);
