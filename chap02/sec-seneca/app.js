@@ -1,21 +1,44 @@
+const async = require("async");
 const seneca = require("seneca");
-const service = seneca({ log: " silent" });
-const stack = [];
+const service = seneca();
 
-service.add("stack:push,value:*", (msg, next) => {
-  stack.push(msg.value);
+service.use("basic");
+service.use("entity");
+service.use("jsonfile-store", { folder: "data" });
 
-  next(null, stack);
-});
+const stack = service.make$("stack");
 
-service.add("stack:pop", (msg, next) => {
-  stack.pop();
+stack.load$(err => {
+  if (err) throw err;
 
-  next(null, stack);
-});
+  service.add("stack:push,value:*", (msg, next) => {
+    stack.make$().save$({ value: msg.value }, err => {
+      next(err, { value: msg.value });
+    });
+  });
 
-service.add("stack:get", (msg, next) => {
-  next(null, stack);
+  service.add("stack:pop,value:*", (msg, next) => {
+    stack.list$({ value: msg.value }, (err, items) => {
+      async.each(
+        items,
+        (item, next) => {
+          item.remove$(next);
+        },
+        err => {
+          if (err) return next(err);
+          next(err, { remove: items.length });
+        }
+      );
+    });
+  });
+
+  service.add("stack:get", (msg, next) => {
+    stack.list$((err, items) => {
+      if (err) return next(err);
+
+      next(null, items.map(item => item.value));
+    });
+  });
 });
 
 service.listen(3000);
