@@ -16,6 +16,18 @@ app.param("image", (req, res, next, image) => {
   return next();
 });
 
+app.param("width", (req, res, next, width) => {
+  req.width = parseFloat(width);
+
+  return next();
+});
+
+app.param("height", (req, res, next, height) => {
+  req.height = parseFloat(height);
+
+  return next();
+});
+
 app.head("/uploads/:image", (req, res) => {
   fs.access(req.localpath, fs.constants.R_OK, err => {
     res.status(err ? 404 : 200).end();
@@ -39,97 +51,34 @@ app.post(
   }
 );
 
-app.get("/uploads/:image", (req, res) => {
-  const fd = fs.createReadStream(req.localpath);
+app.get("/uploads/:width(\\d+)x:height(\\d+)-:image", download_image);
 
-  fd.on("error", error => {
-    res.status(error.code === "ENOENT" ? 404 : 500).end();
-  });
+app.get("/uploads/_x:height(\\d+)-:image", download_image);
 
-  res.setHeader("Content-Type", `image/${path.extname(req.image).substr(1)}`);
+app.get("/uploads/:width(\\d+)x_-:image", download_image);
 
-  fd.pipe(res);
-});
-
-app.get(/\/thumbnail\.(jpg|png)/, (req, res, next) => {
-  const format = req.params[0] === "png" ? "png" : "jpeg";
-  const width = parseFloat(req.query.width) || 300;
-  const height = parseFloat(req.query.height) || 200;
-  const border = parseFloat(req.query.border) || 5;
-  const bgcolor = req.query.bgcolor || "#fcfcfc";
-  const fgcolor = req.query.fgcolor || "#dddddd";
-  const textcolor = req.query.textcolor || "#aaaaaa";
-  const textsize = parseFloat(req.query.textsize) || 24;
-  const image = sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: { r: 0, g: 0, b: 0 }
-    }
-  });
-
-  const thumbnail = Buffer.from(
-    `
-<svg width="${width}" height="${height}">
-  <rect
-    x="0"
-    y="0"
-    width="${width}"
-    height="${height}"
-    fill="${fgcolor}"
-  />
-  <rect
-    x="${border}"
-    y="${border}"
-    width="${width - border * 2}"
-    height="${height - border * 2}"
-    fill="${bgcolor}"
-  />
-  <line
-    x1="${border * 2}"
-    y1="${border * 2}"
-    x2="${width - border * 2}"
-    y2="${height - border * 2}"
-    stroke-width="${border}"
-    stroke="${fgcolor}"
-  />
-  <line
-    x1="${width - border * 2}"
-    y1="${border * 2}"
-    x2="${border * 2}"
-    y2="${height - border * 2}"
-    stroke-width="${border}"
-    stroke="${fgcolor}"
-  />
-  <rect
-    x="${border}"
-    y="${(height - textsize) / 2}"
-    width="${width - border * 2}"
-    height="${textsize}"
-    fill="${bgcolor}"
-  />
-  <text
-    x="${width / 2}"
-    y="${height / 2}"
-    dy="8"
-    font-family="Helvetica"
-    font-size="${textsize}"
-    fill="${textcolor}"
-    text-anchor="middle"
-  >
-    ${width} x ${height}
-  </text>
-</svg>
-`
-  );
-
-  image
-    .overlayWith(thumbnail)
-    [format]() // eslint-disable-line
-    .pipe(res);
-});
+app.get("/uploads/:image", download_image);
 
 app.listen(3000, () => {
   console.log("ready");
 });
+
+function download_image(req, res) {
+  fs.access(req.localpath, fs.constants.R_OK, error => {
+    if (error) return res.status(404).end();
+
+    const image = sharp(req.localpath);
+
+    if (req.width || req.height) {
+      image.resize(
+        req.width,
+        req.height,
+        req.width && req.height ? { fit: "fill" } : undefined
+      );
+    }
+
+    res.setHeader("Content-Type", `image/${path.extname(req.image).substr(1)}`);
+
+    image.pipe(res);
+  });
+}
