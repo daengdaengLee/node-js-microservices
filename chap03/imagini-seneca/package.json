@@ -8,5 +8,9 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "seneca": "^3.8.4",
+    "sharp": "^0.22.0"
+  }
 }
