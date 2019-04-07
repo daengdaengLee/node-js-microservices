@@ -16,25 +16,6 @@ app.param("image", (req, res, next, image) => {
   return next();
 });
 
-app.param("width", (req, res, next, width) => {
-  req.width = parseFloat(width);
-
-  return next();
-});
-
-app.param("height", (req, res, next, height) => {
-  req.height = parseFloat(height);
-
-  return next();
-});
-
-app.param("greyscale", (req, res, next, greyscale) => {
-  if (greyscale !== "bw") return next("route");
-
-  req.greyscale = true;
-  return next();
-});
-
 app.head("/uploads/:image", (req, res) => {
   fs.access(req.localpath, fs.constants.R_OK, err => {
     res.status(err ? 404 : 200).end();
@@ -58,23 +39,6 @@ app.post(
   }
 );
 
-app.get(
-  "/uploads/:width(\\d+)x:height(\\d+)-:greyscale-:image",
-  download_image
-);
-
-app.get("/uploads/:width(\\d+)x:height(\\d+)-:image", download_image);
-
-app.get("/uploads/_x:height(\\d+)-:greyscale-:image", download_image);
-
-app.get("/uploads/_x:height(\\d+)-:image", download_image);
-
-app.get("/uploads/:width(\\d+)x_-:greyscale-:image", download_image);
-
-app.get("/uploads/:width(\\d+)x_-:image", download_image);
-
-app.get("/uploads/:greyscale-:image", download_image);
-
 app.get("/uploads/:image", download_image);
 
 app.listen(3000, () => {
@@ -86,16 +50,19 @@ function download_image(req, res) {
     if (error) return res.status(404).end();
 
     const image = sharp(req.localpath);
+    const width = parseFloat(req.query.width);
+    const height = parseFloat(req.query.height);
+    const greyscale = ["y", "yes", "1", "on"].includes(req.query.greyscale);
 
-    if (req.width || req.height) {
+    if (width > 0 || height > 0) {
       image.resize(
-        req.width,
-        req.height,
-        req.width && req.height ? { fit: "fill" } : undefined
+        width || null,
+        height || null,
+        width > 0 && height > 0 ? { fit: "fill" } : undefined
       );
     }
 
-    if (req.greyscale) {
+    if (greyscale) {
       image.greyscale();
     }
 
