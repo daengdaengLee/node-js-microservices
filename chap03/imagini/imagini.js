@@ -39,20 +39,18 @@ app.post(
   }
 );
 
-app.get("/uploads/:image", download_image);
-
-app.listen(3000, () => {
-  console.log("ready");
-});
-
-function download_image(req, res) {
+app.get("/uploads/:image", (req, res) => {
   fs.access(req.localpath, fs.constants.R_OK, error => {
     if (error) return res.status(404).end();
 
     const image = sharp(req.localpath);
     const width = parseFloat(req.query.width);
     const height = parseFloat(req.query.height);
+    const blur = parseFloat(req.query.blur);
+    const sharpen = parseFloat(req.query.sharpen);
     const greyscale = ["y", "yes", "1", "on"].includes(req.query.greyscale);
+    const flip = ["y", "yes", "1", "on"].includes(req.query.flip);
+    const flop = ["y", "yes", "1", "on"].includes(req.query.flop);
 
     if (width > 0 || height > 0) {
       image.resize(
@@ -62,12 +60,18 @@ function download_image(req, res) {
       );
     }
 
-    if (greyscale) {
-      image.greyscale();
-    }
+    if (flip) image.flip();
+    if (flop) image.flop();
+    if (blur > 0) image.blur(blur);
+    if (sharpen > 0) image.sharpen(sharpen);
+    if (greyscale) image.greyscale();
 
     res.setHeader("Content-Type", `image/${path.extname(req.image).substr(1)}`);
 
     image.pipe(res);
   });
-}
+});
+
+app.listen(3000, () => {
+  console.log("ready");
+});
