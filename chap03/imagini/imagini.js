@@ -29,7 +29,14 @@ app.get("/uploads/:image", (req, res) => {
 
   fd.on("error", error => {
     if (error.code === "ENOENT") {
-      return res.status(404).end();
+      res.status(404);
+
+      if (req.accepts("html")) {
+        res.setHeader("Content-Type", "text/html");
+        res.write("<strong>Error:</strong> image not found");
+      }
+
+      return res.end();
     }
 
     res.status(500).end();
