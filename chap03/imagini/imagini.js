@@ -5,6 +5,41 @@ const bodyparser = require("body-parser");
 const sharp = require("sharp");
 const app = express();
 
+app.head("/uploads/:image", (req, res) => {
+  fs.access(
+    path.join(__dirname, "uploads", req.params.image),
+    fs.constants.R_OK,
+    err => {
+      res.status(err ? 404 : 200);
+      res.end();
+    }
+  );
+});
+
+app.get("/uploads/:image", (req, res) => {
+  const ext = path.extname(req.params.image);
+
+  if (!ext.match(/^\.(png|jpg)$/)) {
+    return res.status(404).end();
+  }
+
+  const fd = fs.createReadStream(
+    path.join(__dirname, "uploads", req.params.image)
+  );
+
+  fd.on("error", error => {
+    if (error.code === "ENOENT") {
+      return res.status(404).end();
+    }
+
+    res.status(500).end();
+  });
+
+  res.setHeader("Content-Type", `image/${ext.substr(1)}`);
+
+  fd.pipe(res);
+});
+
 app.post(
   "/uploads/:image",
   bodyparser.raw({ limit: "10mb", type: "image/*" }),
