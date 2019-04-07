@@ -1,0 +1,17 @@
+{
+  "name": "imagini-seneca",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node seneca",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "seneca": "^3.8.4",
+    "sharp": "^0.22.0"
+  }
+}
