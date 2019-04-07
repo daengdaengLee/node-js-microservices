@@ -4,13 +4,13 @@ const app = express();
 
 app.get(/\/thumbnail\.(jpg|png)/, (req, res, next) => {
   const format = req.params[0] === "png" ? "png" : "jpeg";
-  const width = 300;
-  const height = 200;
-  const border = 5;
-  const bgcolor = "#fcfcfc";
-  const fgcolor = "#dddddd";
-  const textcolor = "#aaaaaa";
-  const textsize = 24;
+  const width = parseFloat(req.query.width) || 300;
+  const height = parseFloat(req.query.height) || 200;
+  const border = parseFloat(req.query.border) || 5;
+  const bgcolor = req.query.bgcolor || "#fcfcfc";
+  const fgcolor = req.query.fgcolor || "#dddddd";
+  const textcolor = req.query.textcolor || "#aaaaaa";
+  const textsize = parseFloat(req.query.textsize) || 24;
   const image = sharp({
     create: {
       width,
