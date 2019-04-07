@@ -13,6 +13,7 @@
     "node": ">=6.2.1"
   },
   "dependencies": {
+    "body-parser": "^1.18.3",
     "fwsp-config": "1.1.5",
     "fwsp-server-response": "2.2.6",
     "hydra-express": "1.7.1",
