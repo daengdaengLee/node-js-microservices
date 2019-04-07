@@ -1,62 +1,48 @@
-const seneca = require("seneca");
 const sharp = require("sharp");
 const path = require("path");
 const fs = require("fs");
 
-const service = seneca();
+module.exports = function(settings = { path: "uploads" }) {
+  const localpath = image => path.join(settings.path, image);
 
-service.add("role:upload,image:*,data:*", (msg, next) => {
-  const filename = path.join(__dirname, "uploads", msg.image);
-  const data = Buffer.from(msg.data, "base64");
+  const access = (filename, next) =>
+    fs.access(filename, fs.constants.R_OK, error => next(!error, filename));
 
-  fs.writeFile(filename, data, error => {
-    if (error) return next(error);
-
-    next(null, { size: data.length });
+  this.add("role:check,image:*", (msg, next) => {
+    access(localpath(msg.image), exists => next(null, { exists }));
   });
-});
 
-service.add("role:check,image:*", (msg, next) => {
-  const filename = path.join(__dirname, "uploads", msg.image);
+  this.add("role:upload,image:*,data:*", (msg, next) => {
+    const data = Buffer.from(msg.data, "base64");
 
-  fs.access(filename, fs.constants.R_OK, error => {
-    next(null, { exists: !error });
+    fs.writeFile(localpath(msg.image), data, error =>
+      next(error, { size: data.length })
+    );
   });
-});
 
-service.add("role:download,image:*", (msg, next) => {
-  const filename = path.join(__dirname, "uploads", msg.image);
+  this.add("role:download,image:*", (msg, next) => {
+    access(localpath(msg.image), (exists, filename) => {
+      if (!exists) return next(new Error("image not found"));
 
-  fs.access(filename, fs.constants.R_OK, error => {
-    if (error) return next(error);
+      const image = sharp(filename);
+      const width = Math.max(parseFloat(msg.width), 0) || null;
+      const height = Math.max(parseFloat(msg.height), 0) || null;
 
-    const image = sharp(filename);
-    const width = parseFloat(msg.width);
-    const height = parseFloat(msg.height);
-    const blur = parseFloat(msg.blur);
-    const sharpen = parseFloat(msg.sharpen);
-    const greyscale = !!msg.greyscale;
-    const flip = !!msg.flip;
-    const flop = !!msg.flop;
+      if (width || height)
+        image.resize(
+          width,
+          height,
+          width && height ? { fit: "fill" } : undefined
+        );
+      if (msg.flip) image.flip();
+      if (msg.flop) image.flop();
+      if (msg.blur > 0) image.blur(msg.blur);
+      if (msg.sharpen > 0) image.sharpen(msg.sharpen);
+      if (msg.greyscale) image.greyscale();
 
-    if (width > 0 || height > 0) {
-      image.resize(
-        width || null,
-        height || null,
-        width > 0 && height > 0 ? { fit: "fill" } : undefined
-      );
-    }
-
-    if (flip) image.flip();
-    if (flop) image.flop();
-    if (blur > 0) image.blur(blur);
-    if (sharpen > 0) image.sharpen(sharpen);
-    if (greyscale) image.greyscale();
-
-    image.toBuffer().then(data => {
-      next(null, { data: data.toString("base64") });
+      image.toBuffer().then(data => {
+        next(null, { data: data.toString("base64") });
+      });
     });
   });
-});
-
-service.listen(3000);
+};
