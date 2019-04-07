@@ -14,8 +14,9 @@
   },
   "dependencies": {
     "fwsp-config": "1.1.5",
+    "fwsp-server-response": "2.2.6",
     "hydra-express": "1.7.1",
-    "fwsp-server-response": "2.2.6"
+    "sharp": "^0.22.0"
   },
   "devDependencies": {
     "chai": "3.5.0",
