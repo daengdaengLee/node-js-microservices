@@ -17,7 +17,7 @@ db.connect(error => {
     CREATE TABLE IF NOT EXISTS images
     (
       id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-      data_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       date_used TIMESTAMP NULL DEFAULT NULL,
       name VARCHAR(300) NOT NULL,
       size INT(11) UNSIGNED NOT NULL,
@@ -27,6 +27,14 @@ db.connect(error => {
     )
     ENGINE=InnoDB DEFAULT CHARSET=utf8
   `);
+
+  setInterval(() => {
+    db.query(`
+      DELETE FROM images
+      WHERE (date_created < UTC_TIMESTAMP - INTERVAL 1 WEEK AND date_used IS NULL)
+      OR (date_used < UTC_TIMESTAMP - INTERVAL 1 MONTH)
+    `);
+  }, 3600 * 1000);
 
   const app = express();
 
@@ -118,6 +126,24 @@ db.connect(error => {
     db.query("DELETE FROM images WHERE id = ?", [req.image.id], error => {
       return res.status(error ? 500 : 200).end();
     });
+  });
+
+  app.get("/stats", (req, res) => {
+    db.query(
+      `
+      SELECT COUNT(*) total
+      , SUM(size) size
+      , MAX(date_created) last_created
+      FROM images
+    `,
+      (error, rows) => {
+        if (error) return res.status(500).end();
+
+        rows[0].uptime = process.uptime();
+
+        return res.send(rows[0]);
+      }
+    );
   });
 
   app.listen(3000, () => {
