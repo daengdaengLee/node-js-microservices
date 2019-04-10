@@ -1,56 +1,87 @@
 const express = require("express");
 const path = require("path");
-const fs = require("fs");
 const bodyparser = require("body-parser");
 const sharp = require("sharp");
-const app = express();
+const mysql = require("mysql");
 
-app.param("image", (req, res, next, image) => {
-  if (!image.match(/\.(png|jpg)$/i)) {
-    return res.status(req.method === "POST" ? 403 : 404).end();
-  }
+const settings = require("./settings");
 
-  req.image = image;
-  req.localpath = path.join(__dirname, "uploads", image);
+const db = mysql.createConnection(settings.db);
 
-  return next();
-});
+db.connect(error => {
+  if (error) throw error;
 
-app.head("/uploads/:image", (req, res) => {
-  fs.access(req.localpath, fs.constants.R_OK, err => {
-    res.status(err ? 404 : 200).end();
+  console.log("db:ready");
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS images
+    (
+      id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+      data_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      date_used TIMESTAMP NULL DEFAULT NULL,
+      name VARCHAR(300) NOT NULL,
+      size INT(11) UNSIGNED NOT NULL,
+      data LONGBLOB NOT NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY name (name)
+    )
+    ENGINE=InnoDB DEFAULT CHARSET=utf8
+  `);
+
+  const app = express();
+
+  app.param("image", (req, res, next, image) => {
+    if (!image.match(/\.(png|jpg)$/i)) {
+      return res.status(403).end();
+    }
+
+    db.query(
+      "SELECT * FROM images WHERE name = ?",
+      [image],
+      (error, images) => {
+        if (error || !images.length) return res.status(404).end();
+
+        req.image = images[0];
+
+        return next();
+      }
+    );
   });
-});
 
-app.post(
-  "/uploads/:image",
-  bodyparser.raw({ limit: "10mb", type: "image/*" }),
-  (req, res) => {
-    const fd = fs.createWriteStream(req.localpath, {
-      flags: "w+",
-      encoding: "binary"
-    });
+  app.head("/uploads/:image", (req, res) => {
+    return res.status(200).end();
+  });
 
-    fd.end(req.body);
+  app.post(
+    "/uploads/:name",
+    bodyparser.raw({ limit: "10mb", type: "image/*" }),
+    (req, res) => {
+      db.query(
+        "INSERT INTO images SET ?",
+        {
+          name: req.params.name,
+          size: req.body.length,
+          data: req.body
+        },
+        error => {
+          if (error) return res.send({ status: "error", code: error.code });
 
-    fd.on("close", () => {
-      res.send({ status: "ok", size: req.body.length });
-    });
-  }
-);
+          res.send({ status: "ok", size: req.body.length });
+        }
+      );
+    }
+  );
 
-app.get("/uploads/:image", (req, res) => {
-  fs.access(req.localpath, fs.constants.R_OK, error => {
-    if (error) return res.status(404).end();
-
-    const image = sharp(req.localpath);
+  app.get("/uploads/:image", (req, res) => {
+    const image = sharp(req.image.data);
     const width = parseFloat(req.query.width);
     const height = parseFloat(req.query.height);
     const blur = parseFloat(req.query.blur);
     const sharpen = parseFloat(req.query.sharpen);
-    const greyscale = ["y", "yes", "1", "on"].includes(req.query.greyscale);
-    const flip = ["y", "yes", "1", "on"].includes(req.query.flip);
-    const flop = ["y", "yes", "1", "on"].includes(req.query.flop);
+    const YES_FLAGS = new Set(["y", "yes", "1", "on"]);
+    const greyscale = YES_FLAGS.has(req.query.greyscale);
+    const flip = YES_FLAGS.has(req.query.flip);
+    const flop = YES_FLAGS.has(req.query.flop);
 
     if (width > 0 || height > 0) {
       image.resize(
@@ -66,12 +97,30 @@ app.get("/uploads/:image", (req, res) => {
     if (sharpen > 0) image.sharpen(sharpen);
     if (greyscale) image.greyscale();
 
-    res.setHeader("Content-Type", `image/${path.extname(req.image).substr(1)}`);
+    db.query(
+      `
+      UPDATE images
+      SET date_used = UTC_TIMESTAMP
+      WHERE id = ?
+    `,
+      [req.image.id]
+    );
+
+    res.setHeader(
+      "Content-Type",
+      `image/${path.extname(req.image.name).substr(1)}`
+    );
 
     image.pipe(res);
   });
-});
 
-app.listen(3000, () => {
-  console.log("ready");
+  app.delete("/uploads/:image", (req, res) => {
+    db.query("DELETE FROM images WHERE id = ?", [req.image.id], error => {
+      return res.status(error ? 500 : 200).end();
+    });
+  });
+
+  app.listen(3000, () => {
+    console.log("ready");
+  });
 });
