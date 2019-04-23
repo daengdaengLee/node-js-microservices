@@ -6,7 +6,10 @@ const mysql = require("mysql");
 
 const settings = require("./settings");
 
+const app = express();
 const db = mysql.createConnection(settings.db);
+
+app.db = db;
 
 db.connect(error => {
   if (error) throw error;
@@ -35,8 +38,6 @@ db.connect(error => {
       OR (date_used < UTC_TIMESTAMP - INTERVAL 1 MONTH)
     `);
   }, 3600 * 1000);
-
-  const app = express();
 
   app.param("image", (req, res, next, image) => {
     if (!image.match(/\.(png|jpg)$/i)) {
@@ -150,3 +151,5 @@ db.connect(error => {
     console.log("ready");
   });
 });
+
+module.exports = app;
