@@ -17,6 +17,9 @@
     "sharp": "^0.22.0"
   },
   "devDependencies": {
-    "eslint": "^5.16.0"
+    "chai": "^4.2.0",
+    "chai-http": "^4.2.1",
+    "eslint": "^5.16.0",
+    "mocha": "^6.1.4"
   }
 }
