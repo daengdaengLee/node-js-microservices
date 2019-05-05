@@ -55,4 +55,17 @@ describe("Download image", () => {
         });
       });
   });
+
+  it("should be able to add image effects as we request", done => {
+    chai
+      .request(tools.service)
+      .get(
+        "/uploads/test_image_download.png?flip=y&flop=y&greyscale=y&blur=10&sharpen=10"
+      )
+      .end((err, res) => {
+        chai.expect(res).to.have.status(200);
+
+        return done();
+      });
+  });
 });
