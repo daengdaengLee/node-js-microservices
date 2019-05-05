@@ -82,7 +82,7 @@ db.connect(error => {
   );
 
   app.get("/uploads/:image", (req, res) => {
-    if (!res.query || Object.keys(res.query).length === 0) {
+    if (Object.keys(req.query).length === 0) {
       db.query(
         `
         UPDATE images
