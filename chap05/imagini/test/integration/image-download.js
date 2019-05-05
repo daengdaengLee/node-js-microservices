@@ -68,4 +68,38 @@ describe("Download image", () => {
         return done();
       });
   });
+
+  it("should be able to resize the image width as we request", done => {
+    chai
+      .request(tools.service)
+      .get("/uploads/test_image_download.png?width=100")
+      .end((err, res) => {
+        chai.expect(res).to.have.status(200);
+
+        const image = sharp(res.body);
+
+        image.metadata().then(metadata => {
+          chai.expect(metadata).to.have.property("width", 100);
+
+          return done();
+        });
+      });
+  });
+
+  it("should be able to resize the image height as we request", done => {
+    chai
+      .request(tools.service)
+      .get("/uploads/test_image_download.png?height=100")
+      .end((err, res) => {
+        chai.expect(res).to.have.status(200);
+
+        const image = sharp(res.body);
+
+        image.metadata().then(metadata => {
+          chai.expect(metadata).to.have.property("height", 100);
+
+          return done();
+        });
+      });
+  });
 });
