@@ -82,6 +82,22 @@ db.connect(error => {
   );
 
   app.get("/uploads/:image", (req, res) => {
+    if (!res.query || Object.keys(res.query).length === 0) {
+      db.query(
+        `
+        UPDATE images
+        SET date_used = UTC_TIMESTAMP
+        WHERE id = ? 
+      `,
+        [req.image.id]
+      );
+      res.setHeader(
+        "Content-Type",
+        `image/${path.extname(req.image.name).substr(1)}`
+      );
+      return res.end(req.image.data);
+    }
+
     const image = sharp(req.image.data);
     const width = parseFloat(req.query.width);
     const height = parseFloat(req.query.height);
